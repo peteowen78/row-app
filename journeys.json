@@ -1,0 +1,12 @@
+{
+  "journeys": [
+    {
+      "id": "dover-calais",
+      "name": "Dover → Calais",
+      "start_date": "2026-10-23",
+      "status": "active",
+      "rollover_m": 0,
+      "route": [[51.1239, 1.3239], [51.1127, 1.3288], [50.9653, 1.8352]]
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Row App</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root {
+    --panel-bg: rgba(10, 25, 38, 0.82);
+    --panel-text: #ffffff;
+    --muted: #9fb8c9;
+    --accent: #ffd166;
+  }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, "Segoe UI", sans-serif; }
+  #map { position: fixed; inset: 0; background: #0a1926; }
+  .panel {
+    position: fixed; z-index: 1000; color: var(--panel-text);
+    background: var(--panel-bg); border-radius: 12px; padding: 12px 16px;
+    backdrop-filter: blur(4px); max-width: calc(100vw - 32px);
+  }
+  #journey-panel { top: 16px; left: 16px; }
+  #journey-panel .label { font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
+  #journey-panel .big { font-size: 24px; font-weight: 700; margin-top: 2px; }
+  #journey-panel .detail { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  #bottom-bar { left: 16px; right: 16px; bottom: 16px; cursor: pointer; font-size: 14px; }
+  #bottom-bar .hint { float: right; color: var(--muted); }
+  #recent { display: none; max-height: 50vh; overflow-y: auto; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 8px; }
+  #recent.open { display: block; }
+  #recent div { font-size: 13px; color: var(--muted); padding: 2px 0; }
+  #banner {
+    top: 16px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: #0a1926; font-weight: 700; display: none;
+  }
+  @media (max-width: 800px) {
+    #banner { top: 120px; }
+  }
+  #error { top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="panel" id="journey-panel">
+  <div class="label" id="journey-name">Loading…</div>
+  <div class="big" id="journey-pct"></div>
+  <div class="detail" id="journey-detail"></div>
+</div>
+<div class="panel" id="banner"></div>
+<div class="panel" id="bottom-bar">
+  <span id="last-row">Loading…</span><span class="hint" id="toggle-hint">▲ recent rows</span>
+  <div id="recent"></div>
+</div>
+<div class="panel" id="error">Couldn't load journey data.<br>Try again in a minute.</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map("map", { zoomControl: false });
+L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  { attribution: "Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics" }
+).addTo(map);
+L.control.zoom({ position: "topright" }).addTo(map);
+
+function km(m) { return (m / 1000).toFixed(1); }
+
+function fmtDate(s) {
+  if (!s) return "";
+  const d = new Date(s.replace(" ", "T"));
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+}
+
+function fmtEta(s) {
+  if (!s) return "—";
+  return new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+async function load() {
+  const [journeysResp, progressResp] = await Promise.all([
+    fetch("journeys.json"), fetch("data/progress.json?t=" + Date.now()),
+  ]);
+  if (!journeysResp.ok || !progressResp.ok) throw new Error("fetch failed");
+  const journeys = (await journeysResp.json()).journeys;
+  const me = (await progressResp.json()).rowers.pete;
+  const route = journeys.find(j => j.id === me.journey_id).route;
+
+  const latlngs = route.map(p => L.latLng(p[0], p[1]));
+  const pos = L.latLng(me.position[0], me.position[1]);
+  // Covered portion: whole route when completed; otherwise walk the route
+  // up to the current position, then append the position itself.
+  let done;
+  if (me.completed) {
+    done = latlngs;
+  } else {
+    done = [latlngs[0]];
+    let remaining = me.total_m;
+    for (let i = 0; i < latlngs.length - 1; i++) {
+      const seg = latlngs[i].distanceTo(latlngs[i + 1]);
+      if (remaining >= seg) { done.push(latlngs[i + 1]); remaining -= seg; }
+      else break;
+    }
+    done.push(pos);
+  }
+
+  L.polyline(latlngs, { color: "#ffffff", weight: 2, dashArray: "6 8", opacity: 0.7 }).addTo(map);
+  L.polyline(done, { color: "#ffd166", weight: 4 }).addTo(map);
+  L.circleMarker(pos, {
+    radius: 9, color: "#0a1926", weight: 2, fillColor: "#ffd166", fillOpacity: 1,
+  }).addTo(map).bindTooltip("You are here");
+  map.fitBounds(L.latLngBounds(latlngs).pad(0.25));
+
+  document.getElementById("journey-name").textContent = me.journey_name;
+  document.getElementById("journey-pct").textContent = me.percent + "%";
+  document.getElementById("journey-detail").textContent =
+    `${km(me.total_m)} of ${km(me.route_length_m)} km · ETA ${fmtEta(me.eta_date)}`;
+
+  const last = me.recent_workouts[0];
+  document.getElementById("last-row").textContent = last
+    ? `Last row: ${(last.distance || 0).toLocaleString()} m · ${fmtDate(last.date)}`
+    : "No rows yet — the journey starts with your next workout.";
+  document.getElementById("recent").innerHTML = me.recent_workouts
+    .map(w => `<div>${fmtDate(w.date)} · ${(w.distance || 0).toLocaleString()} m · ${w.time_formatted || ""}</div>`)
+    .join("");
+
+  if (me.completed) {
+    const banner = document.getElementById("banner");
+    banner.textContent = `You've reached ${me.journey_name.split("→").pop().trim()}! 🎉`;
+    banner.style.display = "block";
+  }
+}
+
+document.getElementById("bottom-bar").addEventListener("click", () => {
+  const recent = document.getElementById("recent");
+  recent.classList.toggle("open");
+  document.getElementById("toggle-hint").textContent =
+    recent.classList.contains("open") ? "▼ hide" : "▲ recent rows";
+});
+
+load().catch(err => {
+  console.error(err);
+  document.getElementById("error").style.display = "block";
+  map.setView([51.04, 1.59], 9);
+});
+</script>
+</body>
+</html>
