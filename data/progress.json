@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-06T23:44:38Z",
+  "generated_at": "2026-11-07T01:28:25Z",
   "rowers": {
     "pete": {
       "journey_id": "dover-calais",
@@ -11,59 +11,76 @@
         51.12299809763023,
         1.3242945822867747
       ],
-      "eta_date": "2041-09-01",
+      "eta_date": "2041-09-02",
       "completed": false,
       "rollover_m": 0,
+      "stats": {
+        "week_m": 104,
+        "prev_week_m": 0,
+        "avg_pace_per_500": "6:44.3",
+        "streak_days": 1,
+        "best_streak_days": 4
+      },
       "recent_workouts": [
         {
           "date": "2026-11-06 23:41:00",
           "distance": 104,
-          "time_formatted": "1:24.1"
+          "time_formatted": "1:24.1",
+          "pace": "6:44.3"
         },
         {
           "date": "2026-10-21 21:04:00",
           "distance": 3500,
-          "time_formatted": "16:51.6"
+          "time_formatted": "16:51.6",
+          "pace": "2:24.5"
         },
         {
           "date": "2025-04-02 18:22:00",
           "distance": 2000,
-          "time_formatted": "8:55.1"
+          "time_formatted": "8:55.1",
+          "pace": "2:13.8"
         },
         {
           "date": "2025-03-31 18:31:00",
           "distance": 2000,
-          "time_formatted": "8:59.8"
+          "time_formatted": "8:59.8",
+          "pace": "2:14.9"
         },
         {
           "date": "2025-02-02 11:14:00",
           "distance": 5000,
-          "time_formatted": "35:34.2"
+          "time_formatted": "35:34.2",
+          "pace": "2:21.4"
         },
         {
           "date": "2025-01-27 18:20:00",
           "distance": 3000,
-          "time_formatted": "23:04.1"
+          "time_formatted": "23:04.1",
+          "pace": "2:20.7"
         },
         {
           "date": "2025-01-04 12:02:00",
           "distance": 4000,
-          "time_formatted": "33:34.6"
+          "time_formatted": "33:34.6",
+          "pace": "2:11.8"
         },
         {
           "date": "2024-10-24 14:05:00",
           "distance": 3672,
-          "time_formatted": "28:00.0"
+          "time_formatted": "28:00.0",
+          "pace": "2:10.7"
         },
         {
           "date": "2024-10-21 18:35:00",
           "distance": 3000,
-          "time_formatted": "21:22.2"
+          "time_formatted": "21:22.2",
+          "pace": "2:03.7"
         },
         {
           "date": "2024-10-19 10:51:00",
           "distance": 3000,
-          "time_formatted": "22:11.1"
+          "time_formatted": "22:11.1",
+          "pace": "2:11.8"
         }
       ]
     }
