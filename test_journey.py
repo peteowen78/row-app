@@ -62,6 +62,19 @@ def w(date_str, distance, wtype="rower"):
     return {"date": date_str, "distance": distance, "type": wtype}
 
 
+class TestJourneyWorkouts(unittest.TestCase):
+    def test_keeps_rower_rows_on_or_after_start_only(self):
+        workouts = [
+            w("2026-10-25 07:00:00", 4000),            # before start — out
+            w("2026-10-26 07:00:00", 5000),            # on start date — in
+            w("2026-10-27 18:30:00", 6000),            # after — in
+            w("2026-10-27 19:00:00", 7000, "bikeerg"), # not a rower — out
+            {"type": "rower", "date": "not a date", "distance": 9000},  # bad date — out
+        ]
+        kept = journey.journey_workouts(workouts, "2026-10-26")
+        self.assertEqual([x["distance"] for x in kept], [5000, 6000])
+
+
 class TestProgress(unittest.TestCase):
     def test_sums_rower_workouts_on_or_after_start_date(self):
         workouts = [

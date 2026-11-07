@@ -146,7 +146,7 @@ def build_progress(workouts, active, today):
     pace = journey_maths.avg_pace_per_500(workouts, today)
     streak_now, streak_best = journey_maths.streaks(workouts, today)
     recent = sorted(
-        (w for w in workouts if w.get("type") == "rower" and w.get("date")),
+        journey_maths.journey_workouts(workouts, active["start_date"]),
         key=lambda w: w["date"],
         reverse=True,
     )[:10]
@@ -242,10 +242,14 @@ def selftest():
     assert pete["route_length_m"] > 41000, "route length must be computed"
     assert pete["completed"] is False
     assert pete["position"] != active["route"][0], "6km in, must have left the start"
-    assert len(pete["recent_workouts"]) == 3
+    # recent rows are this journey's only: the 20 Sep row predates the 1 Oct start
+    assert [r["date"][:10] for r in pete["recent_workouts"]] == ["2026-10-02", "2026-10-02"]
     assert pete["recent_workouts"][0]["pace"] == "2:21.4", pete["recent_workouts"][0]
     assert pete["recent_workouts"][0]["time_formatted"] == "35:34.2"  # display shows elapsed time, not work time
-    assert pete["recent_workouts"][2]["pace"] is None
+    no_time = build_progress(
+        [{"date": "2026-10-02 08:00:00", "distance": 500, "type": "rower"}],
+        active, date(2026, 10, 3))
+    assert no_time["rowers"]["pete"]["recent_workouts"][0]["pace"] is None
     stats = pete["stats"]
     assert stats["week_m"] == 6000, stats          # week Mon 28 Sep - Sun 4 Oct
     assert stats["prev_week_m"] == 0, stats

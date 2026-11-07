@@ -59,22 +59,29 @@ def _workout_day(workout):
         return None
 
 
+def journey_workouts(workouts, start_date):
+    """The workouts that count toward a journey: rower type, dated on or
+    after start_date. Progress and the recent-rows list both use this, so
+    every listed row is one that moved the boat."""
+    start = date.fromisoformat(start_date)
+    return [
+        workout for workout in workouts
+        if workout.get("type") == "rower"
+        and (day := _workout_day(workout)) is not None
+        and day >= start
+    ]
+
+
 def progress_m(workouts, start_date, rollover_m):
     """Journey progress: rower workouts dated on/after start_date, plus rollover.
 
     This is THE definition of progress (spec section 2) — position, percent
     and ETA are all derived from it.
     """
-    start = date.fromisoformat(start_date)
-    total = rollover_m
-    for workout in workouts:
-        if workout.get("type") != "rower":
-            continue
-        day = _workout_day(workout)
-        if day is None or day < start:
-            continue
-        total += workout.get("distance", 0) or 0
-    return total
+    return rollover_m + sum(
+        (workout.get("distance", 0) or 0)
+        for workout in journey_workouts(workouts, start_date)
+    )
 
 
 def eta_date(workouts, done_m, total_m, today):
