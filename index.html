@@ -82,6 +82,13 @@
   @keyframes pulse { 70% { box-shadow: 0 0 0 14px rgba(255,197,61,0); } 100% { box-shadow: 0 0 0 0 rgba(255,197,61,0); } }
   .route-glow { filter: drop-shadow(0 0 6px rgba(255,197,61,0.9)); }
 
+  .hero, .chips { transition: opacity 0.2s ease; }
+  /* Where the panels sit above the bottom bar (phones, short windows), an
+     open recent-rows list would half-cover them; fade them out instead. */
+  @media (max-width: 800px), (max-height: 720px) {
+    body.recent-open .hero, body.recent-open .chips { opacity: 0; pointer-events: none; }
+  }
+
   @media (max-width: 800px) {
     .hero { width: calc(100vw - 28px); top: auto; bottom: 150px; padding: 14px 16px; }
     .hero .pct { font-size: 42px; }
@@ -233,9 +240,9 @@ async function load() {
 
 document.getElementById("bottom-bar").addEventListener("click", () => {
   const recent = document.getElementById("recent");
-  recent.classList.toggle("open");
-  document.getElementById("toggle-hint").textContent =
-    recent.classList.contains("open") ? "▼ hide" : "▲ recent rows";
+  const open = recent.classList.toggle("open");
+  document.body.classList.toggle("recent-open", open);
+  document.getElementById("toggle-hint").textContent = open ? "▼ hide" : "▲ recent rows";
 });
 
 load().catch(err => {
