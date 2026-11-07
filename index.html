@@ -3,56 +3,129 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Row App</title>
+<title>Voyage</title>  <!-- APP_NAME is prefixed by JS so renaming stays a one-line change -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --panel-bg: rgba(10, 25, 38, 0.82);
-    --panel-text: #ffffff;
-    --muted: #9fb8c9;
-    --accent: #ffd166;
+    --ink: #0a0e13;
+    --glass: rgba(13, 18, 26, 0.72);
+    --edge: rgba(255, 255, 255, 0.08);
+    --text: #f2f5f8;
+    --muted: #8da3b5;
+    --gold: #ffc53d;
   }
-  html, body { margin: 0; height: 100%; font-family: -apple-system, "Segoe UI", sans-serif; }
-  #map { position: fixed; inset: 0; background: #0a1926; }
-  .panel {
-    position: fixed; z-index: 1000; color: var(--panel-text);
-    background: var(--panel-bg); border-radius: 12px; padding: 12px 16px;
-    backdrop-filter: blur(4px); max-width: calc(100vw - 32px);
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: Inter, -apple-system, sans-serif; background: var(--ink); }
+  #map { position: fixed; inset: 0; background: var(--ink); }
+  .leaflet-tile { filter: brightness(0.52) saturate(0.65) contrast(1.12); }
+  .leaflet-control-attribution { background: rgba(10,14,19,0.6) !important; color: #5d7284 !important; }
+  .leaflet-control-attribution a { color: #7e95a8 !important; }
+  .leaflet-top.leaflet-right { top: 72px; }  /* zoom buttons clear the glass header */
+
+  .glass {
+    background: var(--glass); border: 1px solid var(--edge); border-radius: 16px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
   }
-  #journey-panel { top: 16px; left: 16px; }
-  #journey-panel .label { font-size: 11px; letter-spacing: 1px; color: var(--muted); text-transform: uppercase; }
-  #journey-panel .big { font-size: 24px; font-weight: 700; margin-top: 2px; }
-  #journey-panel .detail { font-size: 13px; color: var(--muted); margin-top: 2px; }
-  #bottom-bar { left: 16px; right: 16px; bottom: 16px; cursor: pointer; font-size: 14px; }
-  #bottom-bar .hint { float: right; color: var(--muted); }
-  #recent { display: none; max-height: 50vh; overflow-y: auto; margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 8px; }
+  header {
+    position: fixed; z-index: 1000; top: 14px; left: 14px; right: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 18px;
+  }
+  .wordmark { font-family: "Space Grotesk"; font-weight: 700; font-size: 18px; letter-spacing: 6px; color: var(--text); }
+  .wordmark em { color: var(--gold); font-style: normal; }
+  .nav-right { display: flex; align-items: baseline; gap: 16px; }
+  .journey { font-size: 12px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .navlink { font-size: 12px; letter-spacing: 1px; color: var(--gold); font-weight: 600; text-decoration: none; }
+
+  .hero { position: fixed; z-index: 1000; left: 14px; top: 86px; padding: 18px 20px 16px; width: 248px; }
+  .hero .pct { font-family: "Space Grotesk"; font-weight: 700; font-size: 56px; line-height: 1; color: var(--text); }
+  .hero .pct small { font-size: 26px; color: var(--gold); }
+  .hero .dist { margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .hero .dist b { color: var(--text); font-weight: 600; }
+  .bar { margin-top: 14px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; border-radius: 3px;
+    background: linear-gradient(90deg, #e8a40c, var(--gold));
+    box-shadow: 0 0 12px rgba(255,197,61,0.8); }
+
+  .chips { position: fixed; z-index: 1000; left: 14px; top: 262px; display: grid; gap: 10px; width: 248px; grid-template-columns: 1fr 1fr; }
+  .chip { padding: 12px 14px; }
+  .chip .k { font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .chip .v { margin-top: 4px; font-family: "Space Grotesk"; font-weight: 500; font-size: 19px; color: var(--text); }
+  .chip .v em { font-style: normal; color: var(--gold); font-size: 13px; }
+  .chip .s { margin-top: 2px; font-size: 10.5px; color: var(--muted); }
+
+  footer {
+    position: fixed; z-index: 1000; left: 14px; right: 14px; bottom: 14px;
+    padding: 13px 18px; font-size: 13px; color: var(--muted); cursor: pointer;
+  }
+  footer b { color: var(--text); font-weight: 600; }
+  footer .hint { float: right; color: var(--gold); font-weight: 600; }
+  #recent { display: none; margin-top: 8px; border-top: 1px solid var(--edge); padding-top: 8px;
+    max-height: 50vh; overflow-y: auto; }
   #recent.open { display: block; }
-  #recent div { font-size: 13px; color: var(--muted); padding: 2px 0; }
-  #banner {
-    top: 16px; left: 50%; transform: translateX(-50%);
-    background: var(--accent); color: #0a1926; font-weight: 700; display: none;
+  #recent div { font-size: 12.5px; color: var(--muted); padding: 2px 0; }
+
+  #banner { position: fixed; z-index: 1001; top: 80px; left: 50%; transform: translateX(-50%);
+    background: var(--gold); color: var(--ink); font-weight: 700; display: none;
+    padding: 12px 18px; border-radius: 16px; }
+  #error { position: fixed; z-index: 1001; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    display: none; text-align: center; color: var(--text); padding: 16px 20px; }
+
+  .pulse {
+    width: 14px; height: 14px; border-radius: 50%; background: var(--gold);
+    box-shadow: 0 0 0 0 rgba(255,197,61,0.6); animation: pulse 2.2s infinite;
+    border: 2px solid var(--ink);
   }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 14px rgba(255,197,61,0); } 100% { box-shadow: 0 0 0 0 rgba(255,197,61,0); } }
+  .route-glow { filter: drop-shadow(0 0 6px rgba(255,197,61,0.9)); }
+
   @media (max-width: 800px) {
-    #banner { top: 120px; }
+    .hero { width: calc(100vw - 28px); top: auto; bottom: 150px; padding: 14px 16px; }
+    .hero .pct { font-size: 42px; }
+    .chips { width: calc(100vw - 28px); top: auto; bottom: 64px; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .chip { padding: 9px 10px; border-radius: 12px; }
+    .chip .v { font-size: 14px; }
+    .chip .s { display: none; }
+    footer { padding: 11px 14px; }
   }
-  #error { top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; text-align: center; }
 </style>
 </head>
 <body>
 <div id="map"></div>
-<div class="panel" id="journey-panel">
-  <div class="label" id="journey-name">Loading…</div>
-  <div class="big" id="journey-pct"></div>
-  <div class="detail" id="journey-detail"></div>
+<header class="glass">
+  <div class="wordmark" id="wordmark"></div>
+  <div class="nav-right">
+    <span class="journey" id="journey-name">Loading…</span>
+    <a class="navlink" href="journeys.html">Journeys</a>
+  </div>
+</header>
+<div class="hero glass">
+  <div class="pct"><span id="pct">—</span><small>%</small></div>
+  <div class="dist" id="dist">loading…</div>
+  <div class="bar"><i id="bar-fill"></i></div>
 </div>
-<div class="panel" id="banner"></div>
-<div class="panel" id="bottom-bar">
+<div class="chips">
+  <div class="chip glass"><div class="k">This week</div><div class="v" id="week-v">—</div><div class="s" id="week-s"></div></div>
+  <div class="chip glass"><div class="k">Avg pace</div><div class="v" id="pace-v">—</div><div class="s">trailing 14 days</div></div>
+  <div class="chip glass"><div class="k">Streak</div><div class="v" id="streak-v">—</div><div class="s" id="streak-s"></div></div>
+  <div class="chip glass"><div class="k">Landfall</div><div class="v" id="eta-v">—</div><div class="s">at current pace</div></div>
+</div>
+<div id="banner"></div>
+<footer class="glass" id="bottom-bar">
   <span id="last-row">Loading…</span><span class="hint" id="toggle-hint">▲ recent rows</span>
   <div id="recent"></div>
-</div>
-<div class="panel" id="error">Couldn't load journey data.<br>Try again in a minute.</div>
+</footer>
+<div class="glass" id="error">Couldn't load journey data.<br>Try again in a minute.</div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+const APP_NAME = "WAKE";
+document.title = APP_NAME + " — Voyage";
+document.getElementById("wordmark").innerHTML =
+  APP_NAME.slice(0, 2) + "<em>" + APP_NAME.slice(2, 3) + "</em>" + APP_NAME.slice(3);
+
 const map = L.map("map", { zoomControl: false });
 L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -60,36 +133,49 @@ L.tileLayer(
 ).addTo(map);
 L.control.zoom({ position: "topright" }).addTo(map);
 
-function km(m) { return (m / 1000).toFixed(1); }
-
+const THIS_YEAR = new Date().getFullYear();
+function km1(m) { return (m / 1000).toFixed(1); }
 function fmtDate(s) {
   if (!s) return "";
   const d = new Date(s.replace(" ", "T"));
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  const opts = { weekday: "short", day: "numeric", month: "short" };
+  if (d.getFullYear() !== THIS_YEAR) opts.year = "numeric";
+  return d.toLocaleDateString("en-GB", opts);
 }
-
 function fmtEta(s) {
   if (!s) return "—";
-  return new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  const d = new Date(s);
+  const opts = { day: "numeric", month: "short", timeZone: "UTC" };
+  if (d.getUTCFullYear() !== THIS_YEAR) opts.year = "numeric";
+  return d.toLocaleDateString("en-GB", opts);
+}
+function weekSub(weekM, prevM) {
+  if (weekM === 0) return "no rows yet this week";
+  const delta = Math.round((weekM - prevM) / 100) / 10;
+  if (delta === 0) return "level with last week";
+  return (delta > 0 ? "+" : "−") + Math.abs(delta).toFixed(1) + " km on last week";
 }
 
 async function load() {
-  const [journeysResp, progressResp] = await Promise.all([
-    fetch("journeys.json"), fetch("data/progress.json?t=" + Date.now()),
-  ]);
-  if (!journeysResp.ok || !progressResp.ok) throw new Error("fetch failed");
-  const journeys = (await journeysResp.json()).journeys;
-  const me = (await progressResp.json()).rowers.pete;
-  const route = journeys.find(j => j.id === me.journey_id).route;
+  const jResp = await fetch("journeys.json?t=" + Date.now());
+  if (!jResp.ok) throw new Error("journeys fetch failed");
+  const journeys = (await jResp.json()).journeys;
+  const active = journeys.find(j => j.status === "active");
+  if (!active) throw new Error("no active journey in journeys.json");
 
-  const latlngs = route.map(p => L.latLng(p[0], p[1]));
-  const pos = L.latLng(me.position[0], me.position[1]);
-  // Covered portion: whole route when completed; otherwise walk the route
-  // up to the current position, then append the position itself.
+  const pResp = await fetch("data/progress.json?t=" + Date.now());
+  if (!pResp.ok) throw new Error("progress fetch failed");
+  const me = (await pResp.json()).rowers.pete;
+  const synced = me.journey_id === active.id;
+
+  // Route: always the ACTIVE journey's; progress only applies when synced.
+  const latlngs = active.route.map(p => L.latLng(p[0], p[1]));
+  const pos = synced ? L.latLng(me.position[0], me.position[1]) : latlngs[0];
+  L.polyline(latlngs, { color: "#9db7cb", weight: 2, dashArray: "2 9", opacity: 0.8 }).addTo(map);
   let done;
-  if (me.completed) {
+  if (synced && me.completed) {
     done = latlngs;
-  } else {
+  } else if (synced) {
     done = [latlngs[0]];
     let remaining = me.total_m;
     for (let i = 0; i < latlngs.length - 1; i++) {
@@ -98,31 +184,49 @@ async function load() {
       else break;
     }
     done.push(pos);
+  } else {
+    done = [latlngs[0], latlngs[0]];
   }
-
-  L.polyline(latlngs, { color: "#ffffff", weight: 2, dashArray: "6 8", opacity: 0.7 }).addTo(map);
-  L.polyline(done, { color: "#ffd166", weight: 4 }).addTo(map);
-  L.circleMarker(pos, {
-    radius: 9, color: "#0a1926", weight: 2, fillColor: "#ffd166", fillOpacity: 1,
-  }).addTo(map).bindTooltip("You are here");
+  L.polyline(done, { color: "#ffc53d", weight: 4, className: "route-glow" }).addTo(map);
+  L.marker(pos, { icon: L.divIcon({ className: "", html: '<div class="pulse"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }) })
+    .addTo(map).bindTooltip("You are here");
   map.fitBounds(L.latLngBounds(latlngs).pad(0.25));
 
-  document.getElementById("journey-name").textContent = me.journey_name;
-  document.getElementById("journey-pct").textContent = me.percent + "%";
-  document.getElementById("journey-detail").textContent =
-    `${km(me.total_m)} of ${km(me.route_length_m)} km · ETA ${fmtEta(me.eta_date)}`;
+  document.getElementById("journey-name").textContent = active.name;
+
+  if (synced) {
+    document.getElementById("pct").textContent = me.percent;
+    const toGo = Math.max(0, me.route_length_m - me.total_m);
+    document.getElementById("dist").innerHTML =
+      `<b>${km1(me.total_m)} km</b> of ${km1(me.route_length_m)} · ${km1(toGo)} to go`;
+    document.getElementById("bar-fill").style.width = Math.min(100, me.percent) + "%";
+  } else {
+    document.getElementById("pct").textContent = "—";
+    document.getElementById("dist").textContent = "syncing the new journey…";
+  }
+
+  const st = me.stats || {};  // old-format progress.json (pre-stats) must not crash the page
+  document.getElementById("week-v").innerHTML = `${km1(st.week_m || 0)} <em>km</em>`;
+  document.getElementById("week-s").textContent = weekSub(st.week_m || 0, st.prev_week_m || 0);
+  document.getElementById("pace-v").innerHTML =
+    st.avg_pace_per_500 ? `${st.avg_pace_per_500} <em>/500m</em>` : "—";
+  const streak = st.streak_days || 0;
+  document.getElementById("streak-v").innerHTML =
+    `${streak} <em>${streak === 1 ? "day" : "days"}</em>`;
+  document.getElementById("streak-s").textContent = "best: " + (st.best_streak_days || 0);
+  document.getElementById("eta-v").textContent = synced ? fmtEta(me.eta_date) : "—";
 
   const last = me.recent_workouts[0];
-  document.getElementById("last-row").textContent = last
-    ? `Last row: ${(last.distance || 0).toLocaleString()} m · ${fmtDate(last.date)}`
+  document.getElementById("last-row").innerHTML = last
+    ? `Last row <b>${(last.distance || 0).toLocaleString()} m</b> · ${fmtDate(last.date)} · ${last.time_formatted || ""}`
     : "No rows yet — the journey starts with your next workout.";
   document.getElementById("recent").innerHTML = me.recent_workouts
-    .map(w => `<div>${fmtDate(w.date)} · ${(w.distance || 0).toLocaleString()} m · ${w.time_formatted || ""}</div>`)
+    .map(w => `<div>${fmtDate(w.date)} · ${(w.distance || 0).toLocaleString()} m · ${w.time_formatted || ""}${w.pace ? ` · ${w.pace} /500m` : ""}</div>`)
     .join("");
 
-  if (me.completed) {
+  if (synced && me.completed) {
     const banner = document.getElementById("banner");
-    banner.textContent = `You've reached ${me.journey_name.split("→").pop().trim()}! 🎉`;
+    banner.textContent = `You've reached ${active.name.split("→").pop().trim()}! 🎉`;
     banner.style.display = "block";
   }
 }

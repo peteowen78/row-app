@@ -116,24 +116,35 @@ def summarise(workouts):
     )
 
 
-def load_active_journey():
-    config = json.loads(JOURNEYS_FILE.read_text())
-    active = [j for j in config["journeys"] if j["status"] == "active"]
+def load_journeys_config():
+    try:
+        return json.loads(JOURNEYS_FILE.read_text())
+    except FileNotFoundError:
+        sys.exit("journeys.json is missing — it should sit next to sync.py.")
+    except json.JSONDecodeError as e:
+        sys.exit(f"journeys.json is not valid JSON: {e}")
+
+
+def load_active_journey(config):
+    active = [j for j in config["journeys"] if j.get("status") == "active"]
     if len(active) != 1:
         sys.exit(
-            f"journeys.json must have exactly one active journey, found {len(active)}."
+            f"journeys.json must have exactly one active journey, found {len(active)}. "
+            'Set exactly one journey\'s "status" to "active".'
         )
     return active[0]
 
 
 def build_progress(workouts, active, today):
-    """Assemble the progress.json structure (spec section 2)."""
+    """Assemble the progress.json structure (spec: v1 section 2 + v1.5 section 2)."""
     total_m = journey_maths.progress_m(
         workouts, active["start_date"], active["rollover_m"]
     )
     route_length = round(journey_maths.route_length_m(active["route"]))
     completed = total_m >= route_length
     eta = journey_maths.eta_date(workouts, total_m, route_length, today)
+    pace = journey_maths.avg_pace_per_500(workouts, today)
+    streak_now, streak_best = journey_maths.streaks(workouts, today)
     recent = sorted(
         (w for w in workouts if w.get("type") == "rower" and w.get("date")),
         key=lambda w: w["date"],
@@ -152,11 +163,25 @@ def build_progress(workouts, active, today):
                 "eta_date": eta.isoformat() if eta else None,
                 "completed": completed,
                 "rollover_m": max(0, total_m - route_length),
+                "stats": {
+                    "week_m": journey_maths.week_m(workouts, today),
+                    "prev_week_m": journey_maths.prev_week_m(workouts, today),
+                    "avg_pace_per_500": (
+                        journey_maths.format_pace(pace) if pace is not None else None
+                    ),
+                    "streak_days": streak_now,
+                    "best_streak_days": streak_best,
+                },
                 "recent_workouts": [
                     {
                         "date": w.get("date"),
                         "distance": w.get("distance"),
                         "time_formatted": w.get("time_formatted"),
+                        "pace": (
+                            journey_maths.format_pace(p)
+                            if (p := journey_maths.pace_per_500(w)) is not None
+                            else None
+                        ),
                     }
                     for w in recent
                 ],
@@ -195,18 +220,39 @@ def selftest():
         "status": "active", "rollover_m": 500,
         "route": [[51.1279, 1.3134], [50.9513, 1.8587]],
     }
+    config = {"journeys": [
+        {"id": "q", "name": "Queued", "status": "planned",
+         "route": [[0.0, 0.0], [1.0, 1.0]]},  # no start_date/rollover_m on purpose
+        active,
+    ]}
+    assert load_active_journey(config) is active, "planned entries without start_date must not break selection"
     workouts = [
+        # interval row: 'time' is WORK time (tenths); time_formatted includes rest
         {"date": "2026-10-02 07:00:00", "distance": 5000, "type": "rower",
-         "time_formatted": "20:53.1"},
+         "time": 14142, "time_formatted": "35:34.2"},
+        # a half-past-midnight London row on the 2nd
+        {"date": "2026-10-02 00:30:00", "distance": 1000, "type": "rower",
+         "time": 2560, "time_formatted": "4:16.0"},
+        # no 'time': excluded from pace, still counts for distance stats
         {"date": "2026-09-20 07:00:00", "distance": 9999, "type": "rower"},
     ]
     progress = build_progress(workouts, active, date(2026, 10, 3))
     pete = progress["rowers"]["pete"]
-    assert pete["total_m"] == 5500, pete["total_m"]
+    assert pete["total_m"] == 6500, pete["total_m"]
     assert pete["route_length_m"] > 41000, "route length must be computed"
     assert pete["completed"] is False
-    assert pete["position"] != active["route"][0], "5.5km in, must have left Dover"
-    assert len(pete["recent_workouts"]) == 2
+    assert pete["position"] != active["route"][0], "6km in, must have left the start"
+    assert len(pete["recent_workouts"]) == 3
+    assert pete["recent_workouts"][0]["pace"] == "2:21.4", pete["recent_workouts"][0]
+    assert pete["recent_workouts"][0]["time_formatted"] == "35:34.2"  # display shows elapsed time, not work time
+    assert pete["recent_workouts"][2]["pace"] is None
+    stats = pete["stats"]
+    assert stats["week_m"] == 6000, stats          # week Mon 28 Sep - Sun 4 Oct
+    assert stats["prev_week_m"] == 0, stats
+    assert stats["avg_pace_per_500"] == "2:19.2", stats  # 1670.2s / 6000m * 500
+    assert stats["streak_days"] == 1, stats        # rowed yesterday (the 2nd)
+    assert stats["best_streak_days"] == 1, stats
+    json.dumps(progress, allow_nan=False)           # output must be valid strict JSON
 
     print(
         "Self-test passed: pagination, extraction, summary and journeys all behave."
@@ -218,13 +264,14 @@ def main():
         selftest()
         return
     token = get_token()
+    active = load_active_journey(load_journeys_config())
     print("Fetching workout history from the Concept2 Logbook...")
     workouts = fetch_all(token)
     save(workouts)
     print(f"Saved to {DATA_FILE}")
     print(summarise(workouts))
-    active = load_active_journey()
-    progress = build_progress(workouts, active, date.today())
+    today = journey_maths.london_today(datetime.now(timezone.utc))
+    progress = build_progress(workouts, active, today)
     PROGRESS_FILE.write_text(json.dumps(progress, indent=2))
     pete = progress["rowers"]["pete"]
     print(

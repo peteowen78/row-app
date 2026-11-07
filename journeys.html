@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Journeys</title>  <!-- APP_NAME is prefixed by JS so renaming stays a one-line change -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0a0e13; --panel: #11161d; --edge: rgba(255,255,255,0.07);
+    --text: #f2f5f8; --muted: #8da3b5; --gold: #ffc53d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: var(--text); font-family: Inter, -apple-system, sans-serif; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 20px 20px 48px; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 6px 2px 26px; }
+  .wordmark { font-family: "Space Grotesk"; font-weight: 700; font-size: 18px; letter-spacing: 6px; }
+  .wordmark em { color: var(--gold); font-style: normal; }
+  .navlink { font-size: 13px; letter-spacing: 1px; color: var(--gold); font-weight: 600; text-decoration: none; }
+  h1 { font-family: "Space Grotesk"; font-weight: 700; font-size: 34px; margin: 0 0 4px; }
+  .lede { color: var(--muted); font-size: 15px; margin: 0 0 26px; }
+  .section { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 26px 2px 12px; }
+
+  .now { display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    background: linear-gradient(135deg, #15202b, #11161d);
+    border: 1px solid rgba(255,197,61,0.35); border-radius: 20px; padding: 20px 22px;
+    box-shadow: 0 0 40px rgba(255,197,61,0.07); }
+  .now .pct { font-family: "Space Grotesk"; font-weight: 700; font-size: 44px; }
+  .now .pct small { font-size: 20px; color: var(--gold); }
+  .now .name { font-size: 17px; font-weight: 600; }
+  .now .sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .now .badge { margin-left: auto; background: rgba(255,197,61,0.12); color: var(--gold);
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px; padding: 7px 12px; border-radius: 999px; white-space: nowrap; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .jcard { background: var(--panel); border: 1px solid var(--edge); border-radius: 20px; overflow: hidden; }
+  .jcard .art { height: 110px; }
+  .jcard .art svg { display: block; width: 100%; height: 100%; }
+  .jcard .body { padding: 14px 16px 16px; }
+  .jcard .name { font-weight: 600; font-size: 15px; }
+  .jcard .sub { color: var(--muted); font-size: 12.5px; margin-top: 4px; line-height: 1.5; }
+  .jcard .tag { margin-top: 12px; display: inline-block; font-size: 11px; font-weight: 700;
+    letter-spacing: 1.5px; padding: 7px 12px; border-radius: 999px; }
+  .jcard .tag.next { background: var(--gold); color: var(--ink); }
+  .jcard .tag.queued { background: transparent; color: var(--muted); border: 1px solid var(--edge); }
+
+  .logbook { background: var(--panel); border: 1px solid var(--edge); border-radius: 20px; padding: 8px 18px; }
+  .logbook div { display: flex; justify-content: space-between; padding: 12px 2px; border-bottom: 1px solid var(--edge); font-size: 14px; }
+  .logbook div:last-child { border-bottom: none; }
+  .logbook span { color: var(--muted); }
+
+  .custom { display: flex; align-items: center; gap: 16px; border: 1.5px dashed rgba(255,255,255,0.18);
+    border-radius: 20px; padding: 18px 22px; color: var(--muted); margin-top: 14px; }
+  .custom .plus { font-family: "Space Grotesk"; font-size: 28px; color: var(--gold); }
+  .custom b { color: var(--text); }
+
+  #error { display: none; text-align: center; color: var(--text); padding: 40px 20px; }
+  @media (max-width: 700px) { .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="wordmark" id="wordmark"></div>
+    <a class="navlink" href="index.html">Voyage</a>
+  </header>
+  <h1>Journeys</h1>
+  <p class="lede">Pick the water your metres will cross next. One voyage at a time — finish it to unlock the departure board.</p>
+  <div id="content"></div>
+  <div id="error">Couldn't load the journey list.<br>Try again in a minute.</div>
+</div>
+<script>
+const APP_NAME = "WAKE";
+document.title = APP_NAME + " — Journeys";
+document.getElementById("wordmark").innerHTML =
+  APP_NAME.slice(0, 2) + "<em>" + APP_NAME.slice(2, 3) + "</em>" + APP_NAME.slice(3);
+
+const EARTH_RADIUS_M = 6371000;  // same formula and radius as journey.py
+function haversineM(a, b) {
+  const r = Math.PI / 180;
+  const [lat1, lng1, lat2, lng2] = [a[0] * r, a[1] * r, b[0] * r, b[1] * r];
+  const h = Math.sin((lat2 - lat1) / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin((lng2 - lng1) / 2) ** 2;
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(h));
+}
+function routeLengthM(route) {
+  let total = 0;
+  for (let i = 0; i < route.length - 1; i++) total += haversineM(route[i], route[i + 1]);
+  return total;
+}
+function kmRound(m) { return Math.round(m / 1000); }
+
+const THIS_YEAR = new Date().getFullYear();
+function fmtEta(s) {
+  if (!s) return "—";
+  const d = new Date(s);
+  const opts = { day: "numeric", month: "short", timeZone: "UTC" };
+  if (d.getUTCFullYear() !== THIS_YEAR) opts.year = "numeric";
+  return d.toLocaleDateString("en-GB", opts);
+}
+function fmtDay(s) {
+  if (!s) return "";
+  return new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+}
+function art(colour) {
+  return `<svg viewBox="0 0 320 110" preserveAspectRatio="none">
+    <rect width="320" height="110" fill="${colour}"/>
+    <path d="M0,30 C70,12 140,44 210,26 C260,14 290,24 320,18 L320,0 L0,0 Z" fill="rgba(0,0,0,0.25)"/>
+    <path d="M0,88 C60,64 120,96 180,72 C240,50 280,68 320,56 L320,110 L0,110 Z" fill="rgba(255,255,255,0.06)"/>
+    <path d="M30,72 Q160,40 290,70" fill="none" stroke="#ffc53d" stroke-width="2.5" stroke-dasharray="1 7" stroke-linecap="round"/>
+    <circle cx="30" cy="72" r="4" fill="#ffc53d"/><circle cx="290" cy="70" r="4" fill="#f2f5f8"/>
+  </svg>`;
+}
+
+async function load() {
+  const jResp = await fetch("journeys.json?t=" + Date.now());
+  if (!jResp.ok) throw new Error("journeys fetch failed");
+  const journeys = (await jResp.json()).journeys;
+
+  let me = null;
+  try {
+    const pResp = await fetch("data/progress.json?t=" + Date.now());
+    if (pResp.ok) me = (await pResp.json()).rowers.pete;
+  } catch (err) { me = null; }
+
+  const active = journeys.find(j => j.status === "active");
+  const planned = journeys.filter(j => j.status === "planned");
+  const completed = journeys.filter(j => j.status === "completed");
+  let html = "";
+
+  if (active) {
+    const synced = me && me.journey_id === active.id;
+    const pct = synced ? me.percent : "—";
+    const landfall = synced ? fmtEta(me.eta_date) : "—";
+    const note = !me ? " · latest position unavailable"
+      : (!synced ? " · updating after journey switch…" : "");
+    const len = kmRound(routeLengthM(active.route));
+    html += `<div class="section">Under way</div>
+      <div class="now">
+        <div class="pct">${pct}<small>%</small></div>
+        <div>
+          <div class="name">${active.name}</div>
+          <div class="sub">${active.region || ""} · ${len} km · departed ${fmtDay(active.start_date)} · landfall ${landfall}${note}</div>
+        </div>
+        <div class="badge">UNDER WAY</div>
+      </div>`;
+  }
+
+  if (planned.length) {
+    html += `<div class="section">Departure board</div><div class="cards">` +
+      planned.map((j, i) => `<div class="jcard">
+          <div class="art">${art(j.colour || "#17405f")}</div>
+          <div class="body">
+            <div class="name">${j.name}</div>
+            <div class="sub">${j.region || ""} · ${kmRound(routeLengthM(j.route))} km<br>${j.blurb || ""}</div>
+            <span class="tag ${i === 0 ? "next" : "queued"}">${i === 0 ? "DEPART NEXT" : "QUEUED"}</span>
+          </div>
+        </div>`).join("") + `</div>`;
+  }
+
+  if (completed.length) {
+    html += `<div class="section">Logbook of crossings</div><div class="logbook">` +
+      completed.map(j => `<div><b>${j.name}</b><span>${kmRound(routeLengthM(j.route))} km</span></div>`).join("") +
+      `</div>`;
+  }
+
+  html += `<div class="custom"><div class="plus">+</div>
+    <div><b>Chart your own.</b> Drop a start and finish on the map — ${APP_NAME} plots the crossing and measures it for you. Coming in a future version.</div></div>`;
+
+  document.getElementById("content").innerHTML = html;
+}
+
+load().catch(err => {
+  console.error(err);
+  document.getElementById("error").style.display = "block";
+});
+</script>
+</body>
+</html>
