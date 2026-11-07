@@ -5,6 +5,9 @@ on:
   workflow_dispatch: {}       # manual "sync now" button
   push:
     branches: [main]
+concurrency:
+  group: sync          # one sync at a time — parallel runs race on the data commit push
+  cancel-in-progress: false
 permissions:
   contents: write   # the sync job commits data/progress.json
   actions: write    # lets the keepalive step below reset GitHub's 60-day inactivity timer
