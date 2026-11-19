@@ -1,27 +1,33 @@
 {
-  "generated_at": "2026-11-18T20:30:14Z",
+  "generated_at": "2026-11-19T02:34:16Z",
   "rowers": {
     "pete": {
       "journey_id": "dover-calais",
       "journey_name": "Dover \u2192 Calais",
-      "total_m": 5104,
+      "total_m": 8604,
       "route_length_m": 40308,
-      "percent": 12.7,
+      "percent": 21.3,
       "position": [
-        51.098296642668544,
-        1.3782834474399364
+        51.08507391497153,
+        1.42371078329996
       ],
-      "eta_date": "2027-02-23",
+      "eta_date": "2027-01-10",
       "completed": false,
       "rollover_m": 0,
       "stats": {
-        "week_m": 0,
+        "week_m": 3500,
         "prev_week_m": 5000,
-        "avg_pace_per_500": "2:46.5",
-        "streak_days": 0,
+        "avg_pace_per_500": "2:41.5",
+        "streak_days": 1,
         "best_streak_days": 4
       },
       "recent_workouts": [
+        {
+          "date": "2026-11-18 21:08:00",
+          "distance": 3500,
+          "time_formatted": "17:59.0",
+          "pace": "2:34.1"
+        },
         {
           "date": "2026-11-10 20:32:00",
           "distance": 5000,
