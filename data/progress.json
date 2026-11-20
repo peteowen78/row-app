@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-19T20:36:55Z",
+  "generated_at": "2026-11-20T02:19:19Z",
   "rowers": {
     "pete": {
       "journey_id": "dover-calais",
@@ -11,14 +11,14 @@
         51.08507391497153,
         1.42371078329996
       ],
-      "eta_date": "2027-01-10",
+      "eta_date": "2027-01-12",
       "completed": false,
       "rollover_m": 0,
       "stats": {
         "week_m": 3500,
         "prev_week_m": 5000,
-        "avg_pace_per_500": "2:41.5",
-        "streak_days": 1,
+        "avg_pace_per_500": "2:38.5",
+        "streak_days": 0,
         "best_streak_days": 4
       },
       "recent_workouts": [
